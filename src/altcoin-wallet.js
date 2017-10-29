@@ -1,7 +1,7 @@
 /*
   Module which takes care of the SAFEnet altcoins wallet functioning
 */
-import crypto from 'crypto';
+const crypto = require('crypto');
 
 const TAG_TYPE_WALLET = 1012017;
 const TAG_TYPE_WALLET_TX_INBOX = 20082018;
@@ -43,7 +43,7 @@ const _insertEntriesEncrypted = (appHandle, mdHandle, data) => {
     );
 }
 
-export const createWallet = (appHandle, pk) => {
+const createWallet = (appHandle, pk) => {
   console.log("Creating the coin wallet...");
   const emptyCoins = {
     [WALLET_ENTRY_KEY_COINS]: JSON.stringify([])
@@ -75,7 +75,7 @@ const _deserialiseArray = (strOrBuffer) => {
   return Uint8Array.from(arrItems);
 }
 
-export const loadWalletData = (appHandle, serialisedWallet) => {
+const loadWalletData = (appHandle, serialisedWallet) => {
   // We store the wallet inbox at the sha3 hash value of its PublicKey
   // so it's easy to find by other wallet apps to transfer coins.
   console.log("Reading the coin wallet info...");
@@ -84,7 +84,7 @@ export const loadWalletData = (appHandle, serialisedWallet) => {
     .then((coins) => JSON.parse(_fromArrayBuffer(coins)));
 }
 
-export const storeCoinsToWallet = (appHandle, serialisedWallet, coins) => {
+const storeCoinsToWallet = (appHandle, serialisedWallet, coins) => {
   console.log("Saving coins in the wallet on the network...");
   return window.safeMutableData.fromSerial(appHandle, _deserialiseArray(serialisedWallet))
     .then((walletHandle) => window.safeMutableData.encryptKey(walletHandle, WALLET_ENTRY_KEY_COINS)
@@ -125,7 +125,7 @@ const _genKeyPair = (appHandle) => {
     )
 }
 
-export const createTxInbox = (appHandle, pk) => {
+const createTxInbox = (appHandle, pk) => {
   console.log("Creating TX inbox...", pk);
   let baseInbox;
   let encKeys;
@@ -182,7 +182,7 @@ const _decryptTxs = (appHandle, encryptedTxs, encPk, encSk) => {
   }));
 }
 
-export const readTxInboxData = (appHandle, pk, encPk, encSk) => {
+const readTxInboxData = (appHandle, pk, encPk, encSk) => {
   let encryptedTxs = [];
   return _genXorName(appHandle, pk)
     .then((xorName) => window.safeMutableData.newPublic(appHandle, xorName, TAG_TYPE_WALLET_TX_INBOX))
@@ -207,7 +207,7 @@ export const readTxInboxData = (appHandle, pk, encPk, encSk) => {
     );
 }
 
-export const removeTxInboxData = (appHandle, pk, txs) => {
+const removeTxInboxData = (appHandle, pk, txs) => {
   return window.safeMutableData.newMutation(appHandle)
     .then((mutHandle) => Promise.all(txs.map((tx) => window.safeMutableDataMutation.remove(mutHandle, tx.id, 1)))
       .then(() => _genXorName(appHandle, pk))
@@ -219,7 +219,7 @@ export const removeTxInboxData = (appHandle, pk, txs) => {
     );
 }
 
-export const sendTxNotif = (appHandle, pk, coinIds, msg) => {
+const sendTxNotif = (appHandle, pk, coinIds, msg) => {
   const txId = crypto.randomBytes(16).toString('hex');
   const tx = {
     coinIds: coinIds,
@@ -253,7 +253,7 @@ const _checkOwnership = (coin, pk) => {
   return Promise.resolve(coinData);
 }
 
-export const checkOwnership = (appHandle, coinId, pk) => {
+const checkOwnership = (appHandle, coinId, pk) => {
   console.log("Reading coin data...", pk, coinId);
   return window.safeMutableData.newPublic(appHandle, Buffer.from(coinId, 'hex'), TAG_TYPE_THANKS_COIN)
     .then((coinHandle) => window.safeMutableData.get(coinHandle, COIN_ENTRY_KEY_DATA)
@@ -264,7 +264,7 @@ export const checkOwnership = (appHandle, coinId, pk) => {
     );
 }
 
-export const transferCoin = (appHandle, coinId, pk, sk, recipient) => {
+const transferCoin = (appHandle, coinId, pk, sk, recipient) => {
   console.log("Transfering coin's ownership in the network...", coinId, recipient);
 
   return window.safeMutableData.newPublic(appHandle, Buffer.from(coinId, 'hex'), TAG_TYPE_THANKS_COIN)
@@ -284,3 +284,15 @@ export const transferCoin = (appHandle, coinId, pk, sk, recipient) => {
       .then(() => window.safeMutableData.free(coinHandle))
     );
 }
+
+module.exports = {
+  createWallet,
+  loadWalletData,
+  storeCoinsToWallet,
+  createTxInbox,
+  readTxInboxData,
+  removeTxInboxData,
+  sendTxNotif,
+  checkOwnership,
+  transferCoin
+};
