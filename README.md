@@ -8,7 +8,7 @@ This library is used by the [SAFE Wallet App (`safe://safewallet.wow`)](safe://s
 
 ## The SAFE Altcoins
 
-In the same way that the `safecoin` is expected to be just a `MutableData` on the SAFE Network with a specific and tag type reserved for it (i.e. no application will be able to create a MutableData with this tag type but the network itself when rewarding farmers), altcoins on the SAFEnet can also be implemented by creating MutableData's with a predefined tag type, and a mechanism for their supply.
+In the same way that the `safecoin` is expected to be just a `MutableData` on the SAFE Network with a specific tag type reserved for it (i.e. no application will be able to create a MutableData with this tag type but the network itself when rewarding farmers), altcoins on the SAFEnet can also be implemented by creating MutableData's with a predefined tag type, and a mechanism for their supply.
 There are several proposals for how altcoins can be implemented and mined/minted on the SAFEnet. Just as an example, a proposal and good discussion can be found in [this thread on the SAFEnet forum](https://safenetforum.org/t/on-creating-safe-alt-coins/7192?u=bochaco).
 
 ## The `ThanksCoins`

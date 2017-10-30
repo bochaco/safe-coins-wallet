@@ -213,19 +213,19 @@ const _checkOwnership = (coin, pk) => {
 const _fetchCoin = async (appHandle, coinId) => {
   const coinHandle = await window.safeMutableData.newPublic(appHandle, Buffer.from(coinId, 'hex'), TAG_TYPE_THANKS_COIN);
   const coin = await window.safeMutableData.get(coinHandle, COIN_ENTRY_KEY_DATA);
-  window.safeMutableData.free(coinHandle);
-  return coin;
+  return { coin, coinHandle };
 }
 
 const checkOwnership = async (appHandle, coinId, pk) => {
   console.log("Reading coin data...", pk, coinId);
-  const coin = await _fetchCoin(appHandle, coinId);
+  const { coin, coinHandle } = await _fetchCoin(appHandle, coinId);
+  window.safeMutableData.free(coinHandle);
   return _checkOwnership(coin.buf.toString(), pk);
 }
 
 const transferCoin = async (appHandle, coinId, pk, sk, recipient) => {
   console.log("Transfering coin's ownership in the network...", coinId, recipient);
-  const coin = await _fetchCoin(appHandle, coinId);
+  const { coin, coinHandle } = await _fetchCoin(appHandle, coinId);
   let coinData = await _checkOwnership(coin.buf.toString(), pk);
   coinData.owner = recipient;
   coinData.prev_owner = pk;
@@ -234,6 +234,7 @@ const transferCoin = async (appHandle, coinId, pk, sk, recipient) => {
   await window.safeMutableDataMutation.update(mutHandle, COIN_ENTRY_KEY_DATA, JSON.stringify(coinData), coin.version + 1);
   await window.safeMutableData.applyEntriesMutation(coinHandle, mutHandle);
   window.safeMutableDataMutation.free(mutHandle);
+  window.safeMutableData.free(coinHandle);
 }
 
 module.exports = {
