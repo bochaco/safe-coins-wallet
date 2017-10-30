@@ -2,7 +2,9 @@
 
 A package which provides the functionality for an altcoin wallet on the [SAFE Network](https://maidsafe.net).
 Any SAFE application can use this package to implement an altcoin wallet by using the
-provided API. This is currently being used by the [SAFE Wallet App](https://bochaco.github.io)
+provided API.
+
+This library is used by the [SAFE Wallet App (`safe://safewallet.wow`)](safe://safewallet.wow) available on the SAFEnet ([a live mockup is also available here](https://bochaco.github.io)), and more information about it can be found on [this post in the SAFEnet forum](https://safenetforum.org/t/introducing-safe-wallet-app/11764?u=bochaco).
 
 ## The SAFE Altcoins
 
@@ -37,11 +39,13 @@ The coin wallet is just a list coins' addresses that are owned by a public key, 
 
 The `Tag_type` for a ThanksCoin wallet is defined to be set to `1012017`.
 
-The address at which the wallet is stored is calculated in a deterministic way so it can be found/shared with any other wallet application which implements the same specification. In the current implementation the address is calculated by applying the `SHA3` to the public key owninig the coins listed in it.
+The address at which the wallet is stored is calculated in a deterministic way so it can be found/shared with any other wallet application which implements the same specification. In the current implementation the address is calculated by applying the `SHA3` to the public key owning the coins listed within the wallet. However, any app which wants to access the wallet's Private MutableData will need the encryption keys to be able to read the content, thus the app needs to provide an import mechanism for these encryption keys.
 
-The wallet could be alternatively stored at a random address which is kept private to the user's account. In this case the mechanism to import/use the wallet with another compatible wallet application will need to consider that the address cannot be determined from the public key but by importing the XORname of the wallet into the app.
+The wallet could alternatively be stored at a random address which is kept private to the user's account. In this case the mechanism to import/use the wallet with another compatible wallet application will need to also consider that the address cannot be determined from the public key but by importing the XOR address of the wallet into the app, along with the encryption keys as mentioned before.
 
-As mentioned before, the wallet just contain the list of coins that are owned by the public key the wallet is associated to. In current implementation this is achieved by keeping a single entry in the wallet's MutableData with key `__coins` which vaue is a list (serialised JSON format list) of XORname's of each of the coins.
+One option is to make use of the MutableData serialisation mechanism provided by the SAFE API, and have the app to keep the serialised version of the wallet's Private MutableData. By doing, so both the XOR address and the encrpytion keys are imported together, and this is the mechanism currently implemented by this package/lib.
+
+As mentioned before, the wallet just contains the list of coins that are owned by the public key the wallet is associated to. In current implementation this is achieved by keeping a single entry in the wallet's MutableData with key `__coins` which value is a list (a serialised JSON format list) of XOR addresses of each of the coins.
 
 If a mechanism like BIP32 is used, it is then needed to have the wallet to keep the list of coins owned by more than a single public key. The wallet's MutableData entries could contain one entry per derived public key which value is the list of coins owned by that public key. The support of this type of wallet is planned to be incorporated in this library/package in the future.
 
@@ -70,9 +74,9 @@ TODO: briefly explain API functions
 ## Use Cases diagrams
 TODO
 - Create a wallet
-- Read wallet
-- Read inbox for new TX
-- Transfer coin and send notif TX
+- Read TX inbox for new TX
+- Read/Update wallet
+- Transfer coin and send TX notifications
 
 
 ## How to use it
@@ -81,10 +85,10 @@ Install the `npm` dependency in your project:
 npm i --save safe-coins-wallet
 ```
 Then use the API:
-```
-const wallet = require('safe-coins-wallet');
+```js
+const safeCoinsWallet = require('safe-coins-wallet');
 
-wallet.createWallet(...)
+safeCoinsWallet.createWallet(...)
   .then(function (wallet) { ... });
 ```
 
