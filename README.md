@@ -67,9 +67,61 @@ The wallet application periodically checks if new entries were inserted into the
 
 ## The API
 
-Any application can use this package to implement an altcoin wallet without needing to implement the client code to manipulate the coins and the wallet information on the SAFEnet. At the moment, this is in its early stage and only the `ThanksCoin's` are supported, but it is planned to support different type of SAFEnet altcoins, and even `safecoins`.
+Any application can use this package to implement an altcoin wallet without needing to implement the client code to manipulate the coins and the wallet information on the SAFEnet. At the moment, this is in its early stage and only the `ThanksCoin's` are supported, but it is planned to support different type of SAFEnet altcoins, even `safecoins`.
 
-TODO: briefly explain API functions
+All the functions exposed in this API expect a SAFE App handle as first parameter. This can be obtained by using the SAFE DOM API as described [in the SAFEnet's documentation](http://docs.maidsafe.net/beaker-plugin-safe-app), note that it has to be a handle for an authorised and connected session with the network.
+
+#### createWallet( appHandle , publicKey )
+This function creates the coin wallet based on the Public Key provided as parameter. As explained [above](#the-coin-wallet), the coin wallet is a private MutableData which address is the result of applying the SHA3 to the `publicKey` value provided.
+The value returned by `createWallet` is the serialised MutableData info which contains everything needed to retrieve the data stored in it, including the encryption key. Keeping a copy of the returned value, the coins wallet can be read at any time using `loadWalletData`.
+
+#### loadWalletData( appHandle , serialisedWallet )
+In order to read the list of coins stored in a coins wallet, the `loadWalletData` function can be invoked providing the serialised wallet's MutableData info.
+This function simply returns an array of coin addresses which are retrieved from the MutableData stored in the SAFEnet.
+
+#### storeCoinsToWallet( appHandle , serialisedWallet , coinsIds )
+Whenever the list of coins in the wallet needs to be updated, the `storeCoinsToWallet` function can be invoked providing the updated list of coins (`coinsIds`), along with the serialised wallet's MutableData info (`serialisedWallet`). The list of coins is expected to be an array of the coins' addresses.
+
+#### createTxInbox( appHandle , publicKey )
+In order to be able to receive transactions notifications for a coin wallet, a TX Inbox needs to be created as [detailed above](#the-tx-transactions-notifications-inbox).
+This function expects the Public Key that owns the coins for which the TX's notifications are to be received to be provided. It creates the public MutableData to accept the notifications, automatically generating the encryption key pair to encrypt/decrypt each of the TX's. This encryption key pair is returned in an object with the following format:
+```
+{
+    pk: <HEX encoded public key>,
+    sk: <HEX encoded secret key>
+}
+```
+
+#### readTxInboxData( appHandle , publicKey , encryptionPk , encryptionSk )
+The encryption keys generated when creating the TX Inbox with `createTxInbox` function need to be provided as parameters to this function (`encryptionPk` and `encryptionSk`), along with the Public Key associated to the TX's (`publicKey`). This function returns the list of TX's found in the MutableData kept in the SAFEnet as an array of objects with the following format:
+```
+{
+  id: <TX id randomly generated>,
+  coinIds: <list of coins' addresses associated to this TX>,
+  msg: <TX textual message>,
+  date: <TX timsteamp>
+}
+```
+
+#### removeTxInboxData( appHandle , publicKey , txsIds )
+The TX Inbox can be updated by providing the list of TX's that can be removed from it (`txsIds`) along with the Public Key associated to the TX Inbox (`publicKey`). The list of TX's is expected to have the same format as the one returned by the `readTxInboxData` function above.
+
+#### checkOwnership( appHandle , coinId , publicKey )
+Upon receiving a TX notification, the wallet application may want to make sure each of the coins listed in the TX notification are effectively transferred and now owned by the user's Public Key.
+This function takes care of making such a verification and it expects the coin address to verify (`coinId`) and the Public Key which the coin is expected to be owned by (`publicKey`). This function fetches the coin from the SAFEnet, verifies the ownership and either reject or resolve the promise based on it. If the ownership is positively confirmed, an object with the following format containing the coin's information is returned:
+```
+{
+  owner: <Public Key of current owner>,
+  prev_owner: <Public Key or previous owner>
+}
+```
+
+#### transferCoin(appHandle , coinId , publicKey , secretKey , recipient )
+Transferring a coin to a new recipient can be achieved by simply providing the address of the coin to be transferred (`coinId`), the Secret and Public Key to sign the ownership transfer (`publicKey` and `secretKey`) and the recipient's Public Key (`recipient`).
+Note this function doesn't take care of sending the corresponding TX notification which can be done by invoking the `sendTxNotix` function described below.
+
+#### sendTxNotif( appHandle , publicKey , coinsIds , msg )
+Sending a TX notifications is very simple, the Public Key which now owns the coins that were transferred (`publicKey`), the list of coins addresses that were transferred (`coinsIds`), and a textual message for the notification (`msg`), it's all that is required by this function to be able to encrypt the corresponding TX notification and store it in the recipient's TX Inbox.
 
 ## Use Cases diagrams
 TODO
