@@ -119,10 +119,8 @@ const createTxInbox = async (appHandle, pk) => {
   const xorName = await _genXorName(appHandle, pk);
   const inboxHandle = await window.safeMutableData.newPublic(appHandle, xorName, TAG_TYPE_WALLET_TX_INBOX);
   await window.safeMutableData.quickSetup(inboxHandle, baseInbox, TX_INBOX_METADATA_NAME, TX_INBOX_METADATA_DESC);
-  const permSetHandle = await window.safeMutableData.newPermissionSet(appHandle);
-  await window.safeMutableDataPermissionsSet.setAllow(permSetHandle, ACTION_INSERT);
-  await window.safeMutableData.setUserPermissions(inboxHandle, USER_ANYONE, permSetHandle, 1);
-  window.safeMutableDataPermissionsSet.free(permSetHandle);
+  const permSet = [ ACTION_INSERT ];
+  await window.safeMutableData.setUserPermissions(inboxHandle, USER_ANYONE, permSet, 1);
   window.safeMutableData.free(inboxHandle);
   return encKeys;
 }
@@ -132,7 +130,7 @@ const _encrypt = async (appHandle, input, pk) => {
     input = input.toString();
   }
 
-  const pubEncKeyHandle = await window.safeCrypto.pubEncKeyKeyFromRaw(appHandle, Buffer.from(pk, 'hex'));
+  const pubEncKeyHandle = await window.safeCrypto.pubEncKeyFromRaw(appHandle, Buffer.from(pk, 'hex'));
   const encrypted = await window.safeCryptoPubEncKey.encryptSealed(pubEncKeyHandle, input);
   window.safeCryptoPubEncKey.free(pubEncKeyHandle);
   return encrypted;
