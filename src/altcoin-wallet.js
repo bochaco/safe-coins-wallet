@@ -52,7 +52,7 @@ const createWallet = async (appHandle, pk) => {
   };
 
   const keyPairHandle = await window.safeCrypto.generateEncKeyPair(appHandle);
-  const secEncKeyHandle = await window.safeCryptoKeyPair.getSecEncKey(keyPairHandle);
+  const secEncKeyHandle = await window.safeCryptoEncKeyPair.getSecEncKey(keyPairHandle);
   const secEncKey = await window.safeCryptoSecEncKey.getRaw(secEncKeyHandle);
   const nonce = await window.safeCrypto.generateNonce(appHandle);
   const xorName = await _genXorName(appHandle, pk);
@@ -60,7 +60,7 @@ const createWallet = async (appHandle, pk) => {
   await window.safeMutableData.quickSetup(walletHandle, {}, WALLET_METADATA_NAME, WALLET_METADATA_DESC); //TODO: support the case that it exists already
   await _insertEntriesEncrypted(appHandle, walletHandle, emptyCoins);
   const serialisedWallet = await window.safeMutableData.serialise(walletHandle);
-  window.safeCryptoKeyPair.free(keyPairHandle)
+  window.safeCryptoEncKeyPair.free(keyPairHandle)
   window.safeCryptoSecEncKey.free(secEncKeyHandle);
   window.safeMutableData.free(walletHandle);
   const walletArr = new Uint8Array(serialisedWallet);
@@ -98,14 +98,14 @@ const storeCoinsToWallet = async (appHandle, serialisedWallet, coins) => {
 const _genKeyPair = async (appHandle) => {
   let rawKeyPair = {};
   const keyPairHandle = await window.safeCrypto.generateEncKeyPair(appHandle);
-  const pubEncKeyHandle = await window.safeCryptoKeyPair.getPubEncKey(keyPairHandle);
+  const pubEncKeyHandle = await window.safeCryptoEncKeyPair.getPubEncKey(keyPairHandle);
   const rawPubEncKey = await window.safeCryptoPubEncKey.getRaw(pubEncKeyHandle);
   window.safeCryptoPubEncKey.free(pubEncKeyHandle);
   rawKeyPair.pk = rawPubEncKey.buffer.toString('hex');
-  const secEncKeyHandle = await window.safeCryptoKeyPair.getSecEncKey(keyPairHandle);
+  const secEncKeyHandle = await window.safeCryptoEncKeyPair.getSecEncKey(keyPairHandle);
   const rawSecEncKey = await window.safeCryptoSecEncKey.getRaw(secEncKeyHandle);
   window.safeCryptoSecEncKey.free(secEncKeyHandle);
-  window.safeCryptoKeyPair.free(keyPairHandle);
+  window.safeCryptoEncKeyPair.free(keyPairHandle);
   rawKeyPair.sk = rawSecEncKey.buffer.toString('hex');
   return rawKeyPair;
 }
@@ -141,8 +141,8 @@ const _decryptTxs = async (appHandle, encryptedTxs, encPk, encSk) => {
       const rawPk = Buffer.from(encPk, 'hex');
       const rawSk = Buffer.from(encSk, 'hex');
       const keyPairHandle = await window.safeCrypto.generateEncKeyPairFromRaw(appHandle, rawPk, rawSk);
-      const decrypted = await window.safeCryptoKeyPair.decryptSealed(keyPairHandle, encTx.txInfo);
-      window.safeCryptoKeyPair.free(keyPairHandle);
+      const decrypted = await window.safeCryptoEncKeyPair.decryptSealed(keyPairHandle, encTx.txInfo);
+      window.safeCryptoEncKeyPair.free(keyPairHandle);
       const parsedTxInfo = JSON.parse(_fromArrayBuffer(decrypted));
       return { id: encTx.id , ...parsedTxInfo };
     }));
