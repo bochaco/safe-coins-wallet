@@ -1,6 +1,6 @@
 {
   "name": "safe-coins-wallet",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "SAFE coin/altcoins wallet implementation",
   "main": "lib/safe-coins-wallet.js",
   "scripts": {

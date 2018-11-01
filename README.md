@@ -8,7 +8,7 @@ This library is used by the [SAFE Wallet App (`safe://safewallet.wow`)](safe://s
 
 ## The SAFE Altcoins
 
-In the same way that the `safecoin` is expected to be just a `MutableData` on the SAFE Network with a specific tag type reserved for it (i.e. no application will be able to create a MutableData with this tag type but the network itself when rewarding farmers), altcoins on the SAFE Network can also be implemented by creating MutableData's with a predefined tag type, and a mechanism for their supply.
+In the same way that the `safecoin` is expected to be just a `MutableData` on the SAFE Network with a specific type tag reserved for it (i.e. no application will be able to create a MutableData with this type tag but the network itself when rewarding farmers), altcoins on the SAFE Network can also be implemented by creating MutableData's with a predefined type tag, and a mechanism for their supply.
 There are several proposals for how altcoins can be implemented and mined/minted on the SAFE Network. Just as an example, a proposal and good discussion can be found in [this thread on the SAFE Network forum](https://safenetforum.org/t/on-creating-safe-alt-coins/7192?u=bochaco).
 
 ## The `ThanksCoins`
@@ -21,7 +21,7 @@ The following diagram depicts what's the internal data stored in a MutableData s
 
 The `XORName` is a random address in the SAFE Network which is generated automatically by the SAFE API when creating the Public MutableData.
 
-In order to have a Public MutableData to be recognised by a wallet as a ThanksCoin its `Tag_type` value has to be set to `21082018`.
+In order to have a Public MutableData to be recognised by a wallet as a ThanksCoin its `Type_tag` value has to be set to `21082018`.
 
 Finally, since MutableData ownership transfer is not available yet on the SAFE Network, in order to mimic the transfer of ownership, the ThanksCoins contain a single entry which key is `coin-data` and its value is a serialised JSON containing the current (`owner`) and previous owner (`prev_owner`) of the coin.
 
@@ -37,7 +37,7 @@ The coin wallet is just a list coins' addresses that are owned by a public key, 
 
 ![ThanksCoins Wallet Data Entity in the SAFE Network](img/ThanksCoinWalletPk1.png)
 
-The `Tag_type` for a ThanksCoin wallet is defined to be set to `1012017`.
+The `Type_tag` for a ThanksCoin wallet is defined to be set to `1012017`.
 
 The address at which the wallet is stored is calculated in a deterministic way so it can be found/shared with any other wallet application which implements the same specification. In the current implementation the address is calculated by applying the `SHA3-256` to the public key owning the coins listed within the wallet. However, any app which wants to access the wallet's Private MutableData will need the encryption keys to be able to read the content, thus the app needs to provide an import mechanism for these encryption keys.
 
@@ -55,7 +55,7 @@ As mentioned above, since the coins on the SAFE Network are just MutableData's o
 
 ![TX Inbox Data Entity in the SAFE Network](img/TxInboxPk1.png)
 
-The TX inbox is a Public MutableData which address can be calculated by applying the SHA3 to the public key, and its `Tag_type` is predefined to be `20082018`.
+The TX inbox is a Public MutableData which address can be calculated by applying the SHA3 to the public key, and its `Type_tag` is predefined to be `20082018`.
 
 Each transaction is notified by creating a new entry in the TX inbox of the receiving public key, making sure it is encrypted beforehand.
 
