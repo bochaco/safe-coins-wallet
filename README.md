@@ -117,11 +117,14 @@ This function takes care of making such a verification and it expects the coin a
 ```
 
 #### transferCoin( safeApp , coinId , publicKey , secretKey , recipient )
-Transferring a coin to a new recipient can be achieved by simply providing the address of the coin to be transferred (`coinId`), the Secret and Public Key to sign the ownership transfer (`publicKey` and `secretKey`) and the recipient's Public Key (`recipient`).
+Transferring a coin to a new recipient can be achieved by simply providing the address of the coin to be transferred (`coinId`), the Secret and Public Key to sign the ownership transfer (`publicKey` and `secretKey`), and the recipient's Public Key or WebID which has a linked wallet TX inbox (`recipient`).
 Note this function doesn't take care of sending the corresponding TX notification which can be done by invoking the `sendTxNotix` function described below.
 
-#### sendTxNotif( safeApp , publicKey , coinsIds , msg )
-Sending a TX notifications is very simple, the Public Key which now owns the coins that were transferred (`publicKey`), the list of coins addresses that were transferred (`coinsIds`), and a textual message for the notification (`msg`), it's all that is required by this function to be able to encrypt the corresponding TX notification and store it in the recipient's TX Inbox.
+#### sendTxNotif( safeApp , recipient , coinsIds , msg )
+Sending a TX notifications is very simple, simply provide the Public Key which now owns the coins that were transferred or the WebID which has the link to the wallet TX inbox (`recipient`), the list of coins addresses that were transferred (`coinsIds`), and a textual message for the notification (`msg`), it's all that is required by this function to be able to encrypt the corresponding TX notification and store it in the recipient's TX Inbox.
+
+#### updateLinkInWebId( safeApp, webIdUrl , txInboxPk )
+With this function you can also add a link in a WebID to the wallet TX inbox, simply provide the WebID URL where the link needs to be added to (`webIdUrl`), and the Public Key which owns the coins in the target wallet you want to link.
 
 ## Use Cases diagrams
 TODO
