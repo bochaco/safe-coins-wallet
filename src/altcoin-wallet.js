@@ -35,11 +35,13 @@ const _readEncryptedEntry = async (md, key) => {
 
 const _insertEntriesEncrypted = async (safeApp, md, data) => {
   const mutations = await safeApp.mutableData.newMutation();
-  await Promise.all(Object.keys(data).map(async (key) => {
-      const encKey = await md.encryptKey(key);
-      const encValue = await md.encryptValue(data[key]);
-      return mutations.insert(encKey, encValue);
-    }));
+  const keys = Object.keys(data);
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const encKey = await md.encryptKey(key);
+    const encValue = await md.encryptValue(data[key]);
+    await mutations.insert(encKey, encValue);
+  }
 
   await md.applyEntriesMutation(mutations);
 }
@@ -124,14 +126,17 @@ const _encrypt = async (safeApp, input, pk) => {
 };
 
 const _decryptTxs = async (safeApp, encryptedTxs, encPk, encSk) => {
-  return Promise.all(encryptedTxs.map(async (encTx) => {
-      const rawPk = Buffer.from(encPk, 'hex');
-      const rawSk = Buffer.from(encSk, 'hex');
-      const encKeyPair = await safeApp.crypto.generateEncKeyPairFromRaw(rawPk, rawSk);
-      const decrypted = await encKeyPair.decryptSealed(encTx.txInfo);
-      const parsedTxInfo = JSON.parse(_fromArrayBuffer(decrypted));
-      return { id: encTx.id, version: encTx.version, ...parsedTxInfo };
-    }));
+  let decryptedTxs = [];
+  for (let i = 0; i < encryptedTxs.length; i++) {
+    const encTx = encryptedTxs[i];
+    const rawPk = Buffer.from(encPk, 'hex');
+    const rawSk = Buffer.from(encSk, 'hex');
+    const encKeyPair = await safeApp.crypto.generateEncKeyPairFromRaw(rawPk, rawSk);
+    const decrypted = await encKeyPair.decryptSealed(encTx.txInfo);
+    const parsedTxInfo = JSON.parse(_fromArrayBuffer(decrypted));
+    decryptedTxs.push( { id: encTx.id, version: encTx.version, ...parsedTxInfo } );
+  }
+  return decryptedTxs;
 }
 
 const readTxInboxData = async (safeApp, pk, encPk, encSk) => {
@@ -158,7 +163,10 @@ const readTxInboxData = async (safeApp, pk, encPk, encSk) => {
 
 const removeTxInboxData = async (safeApp, pk, txs) => {
   const mutations = await safeApp.mutableData.newMutation();
-  await Promise.all(txs.map((tx) => mutations.delete(tx.id, tx.version + 1)));
+  for (let i = 0; i < txs.length; i++) {
+    const tx = txs[i];
+    await mutations.delete(tx.id, tx.version + 1);
+  }
   const xorName = await _genXorName(safeApp, pk);
   const txInboxMd = await safeApp.mutableData.newPublic(xorName, TYPE_TAG_WALLET_TX_INBOX);
   await txInboxMd.applyEntriesMutation(mutations);
