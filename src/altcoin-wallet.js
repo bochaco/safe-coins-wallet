@@ -179,8 +179,8 @@ const fetchTxInbox = async (safeApp, recipient) => {
   if (recipient.toLowerCase().startsWith('safe://')) {
     // the recipient is a WebID, let's resolve the linked wallet TX inbox
     console.log('Fetching WebID:', recipient);
-    const { serviceMd: webIdMd, type } = await safeApp.fetch( recipient );
-    if ( type !== 'RDF' ) throw 'Service is not mapped to a WebID RDF';
+    const { content: webIdMd, resourceType } = await safeApp.fetch( recipient );
+    if ( resourceType !== 'RDF' ) throw 'Service is not mapped to a WebID RDF';
 
     const webIdRdf = webIdMd.emulateAs( 'rdf' );
     await webIdRdf.nowOrWhenFetched();
@@ -268,8 +268,8 @@ const transferCoin = async (safeApp, coinId, pk, sk, recipient) => {
 export const updateLinkInWebId = async (safeApp, webIdUrl, txInboxPk) => {
   console.log("Updating link in WebID:", webIdUrl, txInboxPk);
 
-  const { serviceMd: webIdMd, type } = await safeApp.fetch( webIdUrl );
-  if ( type !== 'RDF' ) throw 'Service is not mapped to a WebID RDF';
+  const { content: webIdMd, resourceType } = await safeApp.fetch( webIdUrl );
+  if ( resourceType !== 'RDF' ) throw 'Service is not mapped to a WebID RDF';
 
   const webIdRdf = webIdMd.emulateAs( 'rdf' );
   await webIdRdf.nowOrWhenFetched();
