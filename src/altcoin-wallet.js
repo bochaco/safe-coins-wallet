@@ -173,8 +173,7 @@ const removeTxInboxData = async (safeApp, pk, txs) => {
 }
 
 const fetchTxInbox = async (safeApp, recipient) => {
-  let xorName;
-  let typeTag;
+  let txInboxMd;
 
   if (recipient.toLowerCase().startsWith('safe://')) {
     // the recipient is a WebID, let's resolve the linked wallet TX inbox
@@ -186,26 +185,36 @@ const fetchTxInbox = async (safeApp, recipient) => {
     await webIdRdf.nowOrWhenFetched();
 
     const baseUri = recipient.split( '#' )[0];
-    const walletGraph = webIdRdf.sym(`${baseUri}/walletInbox`);
 
+    // first try to find old format 'walletInbox' graph
+    const walletGraph = webIdRdf.sym(`${baseUri}/walletInbox`);
     const SAFETERMS = webIdRdf.namespace( 'http://safenetwork.org/safevocab/' );
     const xornameMatch = webIdRdf.statementsMatching( walletGraph, SAFETERMS( 'xorName' ), undefined );
-    if (!xornameMatch[0]) {
-      throw Error('No wallet TX inbox link found in WebID');
-    }
-    xorName = xornameMatch[0].object.value.split( ',' );
     const typetagMatch = webIdRdf.statementsMatching( walletGraph, SAFETERMS( 'typeTag' ), undefined );
-    if (!typetagMatch[0]) {
-      throw Error('Wallet TX inbox link found in WebID lacks information');
+    if (xornameMatch[0] && typetagMatch[0]) {
+      const xorName = xornameMatch[0].object.value.split( ',' );
+      const typeTag = parseInt( typetagMatch[0].object.value );
+      txInboxMd = await safeApp.mutableData.newPublic(xorName, typeTag);
+    } else {
+      // let's try to find the new format for wallet inbox XOR-URL
+      const WALLETTERMS = webIdRdf.namespace( 'https://w3id.org/cc#' );
+      const hasMeAlready = recipient.includes('#me');
+      // TODO: we should actually be checking which is the default agent in the WebID
+      const webIdWithHashTag = hasMeAlready ? webIdRdf.sym(recipient) : webIdRdf.sym(`${recipient}#me`);
+      const walletInboxMatch = webIdRdf.statementsMatching(webIdWithHashTag, WALLETTERMS('inbox'), undefined);
+      if (!walletInboxMatch[0]) {
+        throw Error('No wallet TX inbox link found in WebID or it lacks information');
+      }
+      const { content } = await safeApp.fetch(walletInboxMatch[0].object.value);
+      txInboxMd = content;
     }
-    typeTag = parseInt( typetagMatch[0].object.value );
   } else {
     // recipient is just a PK
-    xorName = await _genXorName(safeApp, recipient);
-    typeTag = TYPE_TAG_WALLET_TX_INBOX;
+    const xorName = await _genXorName(safeApp, recipient);
+    const typeTag = TYPE_TAG_WALLET_TX_INBOX;
+    txInboxMd = await safeApp.mutableData.newPublic(xorName, typeTag);
   }
 
-  const txInboxMd = await safeApp.mutableData.newPublic(xorName, typeTag);
   return txInboxMd;
 };
 
@@ -275,19 +284,20 @@ export const updateLinkInWebId = async (safeApp, webIdUrl, txInboxPk) => {
   await webIdRdf.nowOrWhenFetched();
 
   const baseUri = webIdUrl.split( '#' )[0];
-  const walletGraph = webIdRdf.sym(`${baseUri}/walletInbox`);
-  webIdRdf.removeMany(walletGraph, undefined, undefined);
+  // remove old format 'walletInbox' graph
+  webIdRdf.removeMany(webIdRdf.sym(`${baseUri}/walletInbox`), undefined, undefined);
+
+  const WALLETTERMS = webIdRdf.namespace( 'https://w3id.org/cc#' );
+  const hasMeAlready = webIdUrl.includes('#me');
+  // TODO: we should actually be checking which is the default agent in the WebID
+  const webIdWithHashTag = hasMeAlready ? webIdRdf.sym(webIdUrl) : webIdRdf.sym(`${webIdUrl}#me`);
+  webIdRdf.removeMany(webIdWithHashTag, WALLETTERMS('inbox'), undefined);
 
   if (txInboxPk) {
-    const RDFS = webIdRdf.namespace( 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' );
-    const WALLETTERMS = webIdRdf.namespace( 'https://w3id.org/cc#' );
-    webIdRdf.add(walletGraph, RDFS('type'), WALLETTERMS('inbox'));
-    const DCTERMS = webIdRdf.namespace( 'http://purl.org/dc/terms/' );
-    webIdRdf.add(walletGraph, DCTERMS('title'), webIdRdf.literal('ThanksCoin wallet TX inbox'));
     const xorName = await _genXorName(safeApp, txInboxPk);
-    const SAFETERMS = webIdRdf.namespace( 'http://safenetwork.org/safevocab/' );
-    webIdRdf.add(walletGraph, SAFETERMS('xorName'), webIdRdf.literal((new Uint8Array(xorName)).toString()));
-    webIdRdf.add(walletGraph, SAFETERMS('typeTag'), webIdRdf.literal(`${TYPE_TAG_WALLET_TX_INBOX}`));
+    const inboxMd = await safeApp.mutableData.newPublic(xorName, TYPE_TAG_WALLET_TX_INBOX);
+    const { xorUrl } = await inboxMd.getNameAndTag();
+    webIdRdf.add(webIdWithHashTag, WALLETTERMS('inbox'), webIdRdf.sym(xorUrl));
   }
 
   try {
