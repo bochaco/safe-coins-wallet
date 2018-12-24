@@ -172,42 +172,51 @@ const removeTxInboxData = async (safeApp, pk, txs) => {
   await txInboxMd.applyEntriesMutation(mutations);
 }
 
-const fetchTxInbox = async (safeApp, recipient) => {
+const _fetchTxInboxFromWebId = async (safeApp, webId) => {
+  const { content: webIdMd, resourceType } = await safeApp.fetch( webId );
+  if ( resourceType !== 'RDF' ) throw 'Service is not mapped to a WebID RDF';
+
+  const webIdRdf = webIdMd.emulateAs( 'rdf' );
+  await webIdRdf.nowOrWhenFetched();
+
+  const baseUri = webId.split( '#' )[0];
+
+  // first try to find old format 'walletInbox' graph
+  const walletGraph = webIdRdf.sym(`${baseUri}/walletInbox`);
+  const SAFETERMS = webIdRdf.namespace( 'http://safenetwork.org/safevocab/' );
+  const xornameMatch = webIdRdf.statementsMatching( walletGraph, SAFETERMS( 'xorName' ), undefined );
+  const typetagMatch = webIdRdf.statementsMatching( walletGraph, SAFETERMS( 'typeTag' ), undefined );
+
+  let txInboxMd;
+  if (xornameMatch[0] && typetagMatch[0]) {
+    const xorName = xornameMatch[0].object.value.split( ',' );
+    const typeTag = parseInt( typetagMatch[0].object.value );
+    txInboxMd = await safeApp.mutableData.newPublic(xorName, typeTag);
+  } else {
+    // let's try to find the new format for wallet inbox XOR-URL
+    const WALLETTERMS = webIdRdf.namespace( 'https://w3id.org/cc#' );
+    const hasMeAlready = webId.includes('#me');
+    // TODO: we should actually be checking which is the default agent in the WebID
+    const webIdWithHashTag = hasMeAlready ? webIdRdf.sym(webId) : webIdRdf.sym(`${webId}#me`);
+    const walletInboxMatch = webIdRdf.statementsMatching(webIdWithHashTag, WALLETTERMS('inbox'), undefined);
+    if (!walletInboxMatch[0]) {
+      throw Error('No wallet TX inbox link found in WebID or it lacks information');
+    }
+    const txInboxXorUrl = walletInboxMatch[0].object.value;
+    const { content } = await safeApp.fetch(txInboxXorUrl);
+    txInboxMd = content;
+  }
+
+  return txInboxMd;
+}
+
+const _fetchTxInbox = async (safeApp, recipient) => {
   let txInboxMd;
 
   if (recipient.toLowerCase().startsWith('safe://')) {
     // the recipient is a WebID, let's resolve the linked wallet TX inbox
     console.log('Fetching WebID:', recipient);
-    const { content: webIdMd, resourceType } = await safeApp.fetch( recipient );
-    if ( resourceType !== 'RDF' ) throw 'Service is not mapped to a WebID RDF';
-
-    const webIdRdf = webIdMd.emulateAs( 'rdf' );
-    await webIdRdf.nowOrWhenFetched();
-
-    const baseUri = recipient.split( '#' )[0];
-
-    // first try to find old format 'walletInbox' graph
-    const walletGraph = webIdRdf.sym(`${baseUri}/walletInbox`);
-    const SAFETERMS = webIdRdf.namespace( 'http://safenetwork.org/safevocab/' );
-    const xornameMatch = webIdRdf.statementsMatching( walletGraph, SAFETERMS( 'xorName' ), undefined );
-    const typetagMatch = webIdRdf.statementsMatching( walletGraph, SAFETERMS( 'typeTag' ), undefined );
-    if (xornameMatch[0] && typetagMatch[0]) {
-      const xorName = xornameMatch[0].object.value.split( ',' );
-      const typeTag = parseInt( typetagMatch[0].object.value );
-      txInboxMd = await safeApp.mutableData.newPublic(xorName, typeTag);
-    } else {
-      // let's try to find the new format for wallet inbox XOR-URL
-      const WALLETTERMS = webIdRdf.namespace( 'https://w3id.org/cc#' );
-      const hasMeAlready = recipient.includes('#me');
-      // TODO: we should actually be checking which is the default agent in the WebID
-      const webIdWithHashTag = hasMeAlready ? webIdRdf.sym(recipient) : webIdRdf.sym(`${recipient}#me`);
-      const walletInboxMatch = webIdRdf.statementsMatching(webIdWithHashTag, WALLETTERMS('inbox'), undefined);
-      if (!walletInboxMatch[0]) {
-        throw Error('No wallet TX inbox link found in WebID or it lacks information');
-      }
-      const { content } = await safeApp.fetch(walletInboxMatch[0].object.value);
-      txInboxMd = content;
-    }
+    txInboxMd = await _fetchTxInboxFromWebId(safeApp, recipient);
   } else {
     // recipient is just a PK
     const xorName = await _genXorName(safeApp, recipient);
@@ -229,7 +238,7 @@ const sendTxNotif = async (safeApp, recipient, coinIds, msg) => {
 
   // we expect the recipient to be a pk but it will also work if it's a WebID
   console.log("Sending TX notification to recipient. TX id: ", txId);
-  const txInboxMd = await fetchTxInbox(safeApp, recipient);
+  const txInboxMd = await _fetchTxInbox(safeApp, recipient);
   const encPk = await txInboxMd.get(TX_INBOX_ENTRY_KEY_ENC_PK);
   const encryptedTx = await _encrypt(safeApp, txNotif, encPk.buf.toString());
   const mutations = await safeApp.mutableData.newMutation();
@@ -262,7 +271,7 @@ const transferCoin = async (safeApp, coinId, pk, sk, recipient) => {
   console.log("Transfering coin's ownership in the network...", coinId, recipient);
   const { coin, coinMd } = await _fetchCoin(safeApp, coinId);
   let coinData = _checkOwnership(coin.buf.toString(), pk);
-  const txInboxMd = await fetchTxInbox(safeApp, recipient);
+  const txInboxMd = await _fetchTxInbox(safeApp, recipient);
   const recipientPk = await txInboxMd.get(TX_INBOX_ENTRY_KEY_WALLET_PK);
   const recipientPkStr = recipientPk.buf.toString();
   coinData.owner = recipientPkStr;
